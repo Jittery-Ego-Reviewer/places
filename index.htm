@@ -1,1 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Places Emoji Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Home Screen Space Background */
+        #screen-home {
+            background: radial-gradient(circle at center, #2b1055 0%, #000000 100%);
+            overflow: hidden;
+            position: relative;
+        }
 
+        .star {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            animation: twinkle var(--duration) infinite ease-in-out alternate;
+            opacity: 0;
+        }
+
+        @keyframes twinkle {
+            0% { opacity: 0.1; transform: scale(0.8); }
+            100% { opacity: 0.9; transform: scale(1.2); }
+        }
+
+        /* Earth Animation */
+        .earth-icon {
+            font-size: clamp(100px, 20vw, 200px);
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.2s;
+            z-index: 10;
+        }
+        
+        .earth-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .animate-earth {
+            animation: zoomRotate 1.5s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+        }
+
+        @keyframes zoomRotate {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; }
+            100% { transform: scale(15) rotate(360deg); opacity: 0; }
+        }
+
+        /* Game Screen Styles */
+        body {
+            touch-action: none; /* Prevents scrolling while dragging */
+            overflow: hidden;
+        }
+
+        .emoji-item {
+            touch-action: none;
+            user-select: none;
+            transition: transform 0.1s;
+        }
+
+        .emoji-item.dragging {
+            transform: scale(1.2) !important;
+            z-index: 9999;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        /* Fallback for missing local images */
+        #image-fallback {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
+    </style>
+</head>
+<body class="w-screen h-screen font-sans text-gray-800">
+
+    <!-- HOME SCREEN -->
+    <div id="screen-home" class="w-full h-full flex items-center justify-center absolute top-0 left-0 z-50">
+        <!-- Stars injected by JS -->
+        <div id="stars-container" class="absolute inset-0"></div>
+        <div id="earth" class="earth-icon drop-shadow-2xl">🌍</div>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="screen-game" class="w-full h-full bg-[#fdfd96] absolute top-0 left-0 hidden flex-col overflow-hidden">
+        
+        <!-- Header -->
+        <div class="w-full flex items-center justify-between p-3 md:p-4 px-6 md:px-8 bg-white/40 shadow-sm relative z-10">
+            <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-gray-700 tracking-wider">我們在哪兒?</h1>
+            <div class="flex gap-2 md:gap-4">
+                <button onclick="goHome()" class="text-2xl md:text-3xl bg-white p-2 md:p-3 rounded-full shadow hover:bg-gray-100 transition active:scale-95" title="Home">🏠</button>
+                <button onclick="resetLevel()" class="text-2xl md:text-3xl bg-white p-2 md:p-3 rounded-full shadow hover:bg-gray-100 transition active:scale-95" title="Reset">🔄</button>
+            </div>
+        </div>
+
+        <!-- Main Workspace (Dynamic flex-col for Portrait/Mobile and flex-row for Landscape/Tablet) -->
+        <div class="flex-1 min-h-0 flex flex-col md:flex-row p-4 md:p-6 gap-4 md:gap-6 overflow-hidden">
+            
+            <!-- Picture Area -->
+            <div id="picture-container" class="flex-1 min-h-0 relative bg-white rounded-3xl border-4 border-white shadow-xl overflow-hidden drop-zone flex items-center justify-center">
+                <!-- .jpg to .jfif fallback is handled in onerror -->
+                <img id="place-image" src="" alt="Place" onerror="handleImageError(this)" class="w-full h-full object-cover pointer-events-none" draggable="false">
+                <div id="image-fallback" class="absolute inset-0 hidden items-center justify-center text-3xl md:text-5xl font-bold text-gray-500 tracking-widest uppercase opacity-70 pointer-events-none"></div>
+            </div>
+
+            <!-- Emoji Sidebar (Adapts layout automatically on phone/tablet orientations) -->
+            <div class="w-full md:w-1/4 md:max-w-[250px] md:min-w-[180px] h-[120px] sm:h-[150px] md:h-full bg-white/60 backdrop-blur rounded-3xl p-2.5 md:p-4 shadow-lg border-2 border-white/80 overflow-hidden flex flex-col justify-center">
+                <!-- 4x2 Grid on Mobile/Portrait, 2x4 Grid on Desktop/Landscape -->
+                <div id="emoji-sidebar" class="grid grid-cols-4 grid-rows-2 md:grid-cols-2 md:grid-rows-4 gap-2 md:gap-3 h-full w-full">
+                    <!-- Slots injected by JS -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- Data Definitions ---
+        const places = [
+            "supermarket", "firestation", "hospital", "beach", "restaurant", 
+            "themepark", "playground", "bank", "postoffice", "cinema", 
+            "bookstore", "toyshop", "salon", "conveniencestore", "library"
+        ];
+
+        const placeEmojis = {
+            supermarket: ['🛒','🥦','🍞','🥚','🧀','🥩','🍙','🍫','🍬','🍭','🍪','🍉','🍎','🍓','🥑','🥕','🥭','👩','👨','👧','👦','👵','🧓'],
+            firestation: ['🚒','👨‍🚒'],
+            hospital: ['👩‍⚕️','💉','🩹','👩','👨','👧','👦','👵','🧓'],
+            beach: ['🏖️','🩴','🩱','🩳','🕶️','🦈','🐟','👩','👨','👧','👦','👵','🧓'],
+            restaurant: ['🍽️','🍝','👨‍🍳','🧂','🍔','🍗','🍱','🍤','🥄','🥢','👩','👨','👧','👦','👵','🧓'],
+            themepark: ['🎢','🎡','🎠','👩','👨','👧','👦','👵','🧓'],
+            playground: ['🛝','⚽','🏀','👧','👦','👩','👨'],
+            bank: ['💰','💳','💵','👩','👨','👧','👦','👵','🧓'],
+            postoffice: ['📮','✉️','📦','👩','👨','👧','👦','👵','🧓'],
+            cinema: ['🍿','👩','👨','👧','👦','👵','🧓'],
+            bookstore: ['📚','📖','🖍️','👩','👨','👧','👦','👵','🧓','💳','💵'],
+            toyshop: ['🧸','🎲','🚂','🪀','🧩','👩','👨','👧','👦','👵','🧓'],
+            salon: ['💅','✂️','🧴','🪮','💇🏻‍♀️','👩','👨','👧','👦','👵','🧓'],
+            conveniencestore: ['🍦','🥤','🍫','👩','👨','👧','👦','👵','🧓'],
+            library: ['📚','👩','👨','👧','👦','👵','🧓']
+        };
+
+        const characterEmojis = ['👩','👨','👧','👦','👵','🧓','👩‍⚕️','👨‍🚒','👨‍🍳','💇🏻‍♀️'];
+        const extraIrrelevant = ['💣', '🪖', '🛡️', '💩'];
+
+        let currentPlace = null;
+        let activeEmoji = null;
+        let startX = 0, startY = 0;
+
+        // --- Initialization ---
+        function initStars() {
+            const container = document.getElementById('stars-container');
+            for (let i = 0; i < 60; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.width = Math.random() * 4 + 1 + 'px';
+                star.style.height = star.style.width;
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.setProperty('--duration', (Math.random() * 2 + 1) + 's');
+                star.style.animationDelay = (Math.random() * 2) + 's';
+                container.appendChild(star);
+            }
+        }
+
+        // --- Game Logic ---
+        document.getElementById('earth').addEventListener('click', function() {
+            this.classList.add('animate-earth');
+            setTimeout(() => {
+                document.getElementById('screen-home').classList.add('hidden');
+                document.getElementById('screen-game').classList.remove('hidden');
+                document.getElementById('screen-game').classList.add('flex');
+                startGame();
+            }, 1400); // Matches animation duration
+        });
+
+        function goHome() {
+            document.getElementById('screen-game').classList.add('hidden');
+            document.getElementById('screen-game').classList.remove('flex');
+            document.getElementById('screen-home').classList.remove('hidden');
+            const earth = document.getElementById('earth');
+            earth.classList.remove('animate-earth');
+            currentPlace = null;
+            clearBoard();
+        }
+
+        function resetLevel() {
+            if(currentPlace) startGame(currentPlace);
+        }
+
+        function startGame(forcePlace = null) {
+            clearBoard();
+            currentPlace = forcePlace || places[Math.floor(Math.random() * places.length)];
+            
+            // Set image and reset fallback UI
+            const imgEl = document.getElementById('place-image');
+            const fallbackEl = document.getElementById('image-fallback');
+            imgEl.style.display = 'block';
+            fallbackEl.style.display = 'none';
+            imgEl.src = `places/${currentPlace}.jpg`;
+            fallbackEl.innerText = currentPlace;
+
+            // Prepare Emoji Pool
+            const emojis = generateEmojiPool(currentPlace);
+            
+            const sidebar = document.getElementById('emoji-sidebar');
+            emojis.forEach((emojiData, index) => {
+                // Create Slot (Adapts to grid dimensions dynamically)
+                const slot = document.createElement('div');
+                slot.id = `slot-${index}`;
+                slot.className = "w-full h-full bg-gray-100/80 rounded-2xl border-2 border-dashed border-gray-300 flex items-center justify-center relative";
+                
+                // Create Emoji element
+                const emojiEl = document.createElement('div');
+                emojiEl.className = "emoji-item text-3xl sm:text-4xl md:text-5xl bg-white w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center shadow-sm cursor-grab absolute select-none";
+                emojiEl.innerText = emojiData.text;
+                emojiEl.dataset.relevant = emojiData.isRelevant;
+                emojiEl.dataset.origSlot = slot.id;
+                
+                // Attach Pointer Events for dragging
+                emojiEl.addEventListener('pointerdown', onPointerDown);
+
+                slot.appendChild(emojiEl);
+                sidebar.appendChild(slot);
+            });
+        }
+
+        function generateEmojiPool(place) {
+            const relevantPool = placeEmojis[place];
+            let relevantPicked = [];
+            
+            // Pick 4 relevant (allow duplicates if pool is small like firestation)
+            for(let i=0; i<4; i++) {
+                relevantPicked.push(relevantPool[Math.floor(Math.random() * relevantPool.length)]);
+            }
+
+            // Build irrelevant pool (exclude characters and current place items)
+            let irrPool = [...extraIrrelevant];
+            for(let p in placeEmojis) {
+                if(p !== place) {
+                    placeEmojis[p].forEach(e => {
+                        if(!characterEmojis.includes(e) && !irrPool.includes(e)) {
+                            irrPool.push(e);
+                        }
+                    });
+                }
+            }
+
+            let irrelevantPicked = [];
+            for(let i=0; i<4; i++) {
+                let idx = Math.floor(Math.random() * irrPool.length);
+                irrelevantPicked.push(irrPool[idx]);
+                irrPool.splice(idx, 1);
+            }
+
+            let combined = [
+                ...relevantPicked.map(text => ({ text, isRelevant: true })),
+                ...irrelevantPicked.map(text => ({ text, isRelevant: false }))
+            ];
+
+            // Shuffle
+            return combined.sort(() => Math.random() - 0.5);
+        }
+
+        function clearBoard() {
+            document.getElementById('emoji-sidebar').innerHTML = '';
+            // Remove any emojis dropped onto the picture container
+            const dropped = document.getElementById('picture-container').querySelectorAll('.emoji-item');
+            dropped.forEach(el => el.remove());
+            // Remove any floating emojis attached to body
+            document.querySelectorAll('body > .emoji-item').forEach(el => el.remove());
+        }
+
+        // --- Drag and Drop Logic (Pointer Events for Touch/Mouse Support) ---
+        function onPointerDown(e) {
+            activeEmoji = e.target;
+            
+            // Clear any pending spring-back timeout if grabbed mid-air
+            if(activeEmoji.springTimeout) {
+                clearTimeout(activeEmoji.springTimeout);
+                activeEmoji.springTimeout = null;
+                activeEmoji.style.transition = '';
+            }
+
+            activeEmoji.classList.add('dragging');
+            activeEmoji.classList.remove('cursor-grab');
+            activeEmoji.classList.add('cursor-grabbing');
+
+            const rect = activeEmoji.getBoundingClientRect();
+            
+            // Move to body so it floats above absolutely everything during drag
+            document.body.appendChild(activeEmoji);
+            activeEmoji.style.position = 'absolute';
+            activeEmoji.style.left = rect.left + 'px';
+            activeEmoji.style.top = rect.top + 'px';
+
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
+
+            activeEmoji.setPointerCapture(e.pointerId);
+            activeEmoji.addEventListener('pointermove', onPointerMove);
+            activeEmoji.addEventListener('pointerup', onPointerUp);
+            activeEmoji.addEventListener('pointercancel', onPointerUp);
+        }
+
+        // --- Multi-touch Safety Fix ---
+        function onPointerMove(e) {
+            if(!activeEmoji || activeEmoji !== e.target) return;
+            activeEmoji.style.left = (e.clientX - startX) + 'px';
+            activeEmoji.style.top = (e.clientY - startY) + 'px';
+        }
+
+        function onPointerUp(e) {
+            if(!activeEmoji || activeEmoji !== e.target) return;
+            const emoji = activeEmoji;
+            activeEmoji = null; // Detach immediately
+
+            emoji.removeEventListener('pointermove', onPointerMove);
+            emoji.removeEventListener('pointerup', onPointerUp);
+            emoji.removeEventListener('pointercancel', onPointerUp);
+            emoji.releasePointerCapture(e.pointerId);
+            emoji.classList.remove('dragging', 'cursor-grabbing');
+            emoji.classList.add('cursor-grab');
+
+            // Find what's underneath the pointer (hide emoji momentarily to check)
+            emoji.style.display = 'none';
+            const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
+            emoji.style.display = 'flex';
+
+            const dropzone = document.getElementById('picture-container');
+
+            if(elemBelow && (dropzone === elemBelow || dropzone.contains(elemBelow))) {
+                // Dropped ON the picture
+                const dropRect = dropzone.getBoundingClientRect();
+                dropzone.appendChild(emoji);
+                
+                // Adjust coordinates relative to the picture container as percentages (for seamless responsive resizing)
+                const relativeX = (e.clientX - startX - dropRect.left);
+                const relativeY = (e.clientY - startY - dropRect.top);
+                const xPct = (relativeX / dropRect.width) * 100;
+                const yPct = (relativeY / dropRect.height) * 100;
+
+                emoji.style.left = `${xPct}%`;
+                emoji.style.top = `${yPct}%`;
+
+                // Check Relevance Rules
+                if(emoji.dataset.relevant === 'false') {
+                    // Start 3 second countdown to spring back
+                    emoji.springTimeout = setTimeout(() => {
+                        springBackToSlot(emoji);
+                    }, 3000);
+                }
+            } else {
+                // Dropped outside, snap back instantly
+                springBackToSlot(emoji);
+            }
+        }
+
+        function springBackToSlot(emoji) {
+            const slot = document.getElementById(emoji.dataset.origSlot);
+            if(!slot) return;
+
+            // Get current absolute position to ensure smooth transition start
+            const currentRect = emoji.getBoundingClientRect();
+            document.body.appendChild(emoji);
+            emoji.style.left = currentRect.left + 'px';
+            emoji.style.top = currentRect.top + 'px';
+
+            const slotRect = slot.getBoundingClientRect();
+
+            // Force reflow
+            void emoji.offsetWidth;
+
+            // Animate
+            emoji.style.transition = 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            
+            // Adjust back into the slot bounds
+            const xOffset = (slotRect.width - emoji.offsetWidth) / 2;
+            const yOffset = (slotRect.height - emoji.offsetHeight) / 2;
+
+            emoji.style.left = (slotRect.left + xOffset) + 'px';
+            emoji.style.top = (slotRect.top + yOffset) + 'px';
+
+            emoji.springTimeout = setTimeout(() => {
+                emoji.style.transition = '';
+                emoji.style.position = 'absolute'; 
+                emoji.style.left = '';
+                emoji.style.top = '';
+                slot.appendChild(emoji);
+                emoji.springTimeout = null;
+            }, 500);
+        }
+
+        // --- Image Loading Fallback Handling ---
+        function handleImageError(img) {
+            if(img.src.endsWith('.jpg')) {
+                // Retry with .jfif format if .jpg fails
+                img.src = img.src.replace('.jpg', '.jfif');
+            } else {
+                // If both fail or file doesn't exist locally, show placeholder
+                img.style.display = 'none';
+                document.getElementById('image-fallback').style.display = 'flex';
+            }
+        }
+
+        // Init
+        initStars();
+    </script>
+</body>
+</html>

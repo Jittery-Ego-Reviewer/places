@@ -63,7 +63,7 @@
         .emoji-item.dragging {
             transform: scale(1.2) !important;
             z-index: 9999;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            filter: drop-shadow(0 10px 10px rgba(0,0,0,0.35));
         }
 
         /* Fallback for missing local images */
@@ -210,9 +210,9 @@
                 slot.id = `slot-${index}`;
                 slot.className = "w-full h-full bg-gray-100/80 rounded-2xl border-2 border-dashed border-gray-300 flex items-center justify-center relative";
                 
-                // Create Emoji element
+                // Create Emoji element (no white circle backgrounds)
                 const emojiEl = document.createElement('div');
-                emojiEl.className = "emoji-item text-3xl sm:text-4xl md:text-5xl bg-white w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center shadow-sm cursor-grab absolute select-none";
+                emojiEl.className = "emoji-item text-3xl sm:text-4xl md:text-5xl w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center cursor-grab absolute select-none";
                 emojiEl.innerText = emojiData.text;
                 emojiEl.dataset.relevant = emojiData.isRelevant;
                 emojiEl.dataset.origSlot = slot.id;

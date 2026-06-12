@@ -125,11 +125,11 @@
         const placeEmojis = {
             supermarket: ['🛒','🥦','🍞','🥚','🧀','🥩','🍙','🍫','🍬','🍭','🍪','🍉','🍎','🍓','🥑','🥕','🥭','👩','👨','👧','👦','👵','🧓'],
             firestation: ['🚒','👨‍🚒'],
-            hospital: ['👩‍⚕️','💉','🩹','👩','👨','👧','👦','👵','🧓'],
-            beach: ['🏖️','🩴','🩱','🩳','🕶️','🦈','🐟','👩','👨','👧','👦','👵','🧓'],
+            hospital: ['👩‍⚕️','💉','🩹','👩','👨','👧','👦','👵','🧓','💊','🩺'],
+            beach: ['🏖️','🩴','🩱','🩳','🕶️','🦈','🐟','👩','👨','👧','👦','👵','🧓','🛟'],
             restaurant: ['🍽️','🍝','👨‍🍳','🧂','🍔','🍗','🍱','🍤','🥄','🥢','👩','👨','👧','👦','👵','🧓'],
             themepark: ['🎢','🎡','🎠','👩','👨','👧','👦','👵','🧓'],
-            playground: ['🛝','⚽','🏀','👧','👦','👩','👨'],
+            playground: ['🛝','⚽','🏀','👧','👦','👩','👨','🍃','🌳','🪺'],
             bank: ['💰','💳','💵','👩','👨','👧','👦','👵','🧓'],
             postoffice: ['📮','✉️','📦','👩','👨','👧','👦','👵','🧓'],
             cinema: ['🍿','👩','👨','👧','👦','👵','🧓'],
@@ -141,7 +141,7 @@
         };
 
         const characterEmojis = ['👩','👨','👧','👦','👵','🧓','👩‍⚕️','👨‍🚒','👨‍🍳','💇🏻‍♀️'];
-        const extraIrrelevant = ['💣', '🪖', '🛡️', '💩'];
+        const implausibleEmojis = ['💣', '🪖', '🛡️', '💩', '🪄', '🚀', '🛸', '🚽', '👽'];
 
         let currentPlace = null;
         let activeEmoji = null;
@@ -234,18 +234,8 @@
                 relevantPicked.push(relevantPool[Math.floor(Math.random() * relevantPool.length)]);
             }
 
-            // Build irrelevant pool (exclude characters and current place items)
-            let irrPool = [...extraIrrelevant];
-            for(let p in placeEmojis) {
-                if(p !== place) {
-                    placeEmojis[p].forEach(e => {
-                        if(!characterEmojis.includes(e) && !irrPool.includes(e)) {
-                            irrPool.push(e);
-                        }
-                    });
-                }
-            }
-
+            // Build irrelevant pool strictly from the implausible list
+            let irrPool = [...implausibleEmojis];
             let irrelevantPicked = [];
             for(let i=0; i<4; i++) {
                 let idx = Math.floor(Math.random() * irrPool.length);

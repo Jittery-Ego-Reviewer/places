@@ -33,6 +33,9 @@
             user-select: none;
             transition: transform 0.2s;
             z-index: 10;
+            will-change: transform;
+            transform: translateZ(0);
+            backface-visibility: hidden;
         }
         
         .earth-icon:hover {
@@ -44,8 +47,17 @@
         }
 
         @keyframes zoomRotate {
-            0% { transform: scale(1) rotate(0deg); opacity: 1; }
-            100% { transform: scale(15) rotate(360deg); opacity: 0; }
+            0% { 
+                transform: scale(1) rotate(0deg) translateZ(0);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(8) rotate(180deg) translateZ(0);
+            }
+            100% { 
+                transform: scale(15) rotate(360deg) translateZ(0);
+                opacity: 0;
+            }
         }
 
         /* Game Screen Styles */
@@ -104,7 +116,7 @@
             </div>
 
             <!-- Emoji Sidebar (Adapts layout automatically on phone/tablet orientations) -->
-            <div class="w-full md:w-1/4 md:max-w-[250px] md:min-w-[180px] h-[120px] sm:h-[150px] md:h-full bg-white/60 backdrop-blur rounded-3xl p-2.5 md:p-4 shadow-lg border-2 border-white/80 overflow-hidden flex flex-col justify-center">
+            <div class="w-full md:w-1/4 md:max-w-[250px] md:min-w-[180px] h-[120px] sm:h-[150px] md:h-full bg-white/60 backdrop-blur rounded-3xl p-2.5 md:p-4 shadow-lg border-2 border-white/80 overflow-hidden">
                 <!-- 4x2 Grid on Mobile/Portrait, 2x4 Grid on Desktop/Landscape -->
                 <div id="emoji-sidebar" class="grid grid-cols-4 grid-rows-2 md:grid-cols-2 md:grid-rows-4 gap-2 md:gap-3 h-full w-full">
                     <!-- Slots injected by JS -->
